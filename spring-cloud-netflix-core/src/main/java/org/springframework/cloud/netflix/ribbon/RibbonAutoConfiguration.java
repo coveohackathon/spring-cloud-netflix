@@ -19,6 +19,8 @@ package org.springframework.cloud.netflix.ribbon;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.http.client.HttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
@@ -63,6 +65,12 @@ public class RibbonAutoConfiguration {
 		SpringClientFactory factory = new SpringClientFactory();
 		factory.setConfigurations(this.configurations);
 		return factory;
+	}
+
+	@Bean
+	@ConditionalOnMissingBean(HttpClient.class)
+	public HttpClient httpClient() {
+	    return HttpClientBuilder.create().build();
 	}
 
 	@Bean

@@ -18,6 +18,8 @@ package org.springframework.cloud.netflix.zuul.filters.route.apache;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.cloud.netflix.ribbon.DefaultServerIntrospector;
+import org.springframework.cloud.netflix.ribbon.ServerIntrospector;
 import org.springframework.cloud.netflix.ribbon.SpringClientFactory;
 import org.springframework.cloud.netflix.ribbon.apache.RibbonLoadBalancingHttpClient;
 import org.springframework.cloud.netflix.zuul.filters.route.RibbonCommandContext;
@@ -38,11 +40,22 @@ public class HttpClientRibbonCommandFactory implements
 		final RibbonLoadBalancingHttpClient client = this.clientFactory.getClient(
 				serviceId, RibbonLoadBalancingHttpClient.class);
 		client.setLoadBalancer(this.clientFactory.getLoadBalancer(serviceId));
+		client.setServerIntrospector(serverIntrospector(serviceId));
 
 		final HttpClientRibbonCommand httpClientRibbonCommand = new HttpClientRibbonCommand(
 				serviceId, client, context.getVerb(), context.getUri(),
 				context.getHeaders(), context.getParams(), context.getRequestEntity(),
 				context.getRetryable());
 		return httpClientRibbonCommand;
+	}
+
+	private ServerIntrospector serverIntrospector(String serviceId) {
+		ServerIntrospector serverIntrospector = this.clientFactory.getInstance(serviceId,
+				ServerIntrospector.class);
+		if (serverIntrospector == null) {
+			serverIntrospector = new DefaultServerIntrospector();
+		}
+		return serverIntrospector;
+
 	}
 }

@@ -18,12 +18,12 @@ package org.springframework.cloud.netflix.feign.ribbon;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.cloud.netflix.ribbon.ServerIntrospector;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import com.netflix.client.AbstractLoadBalancerAwareClient;
 import com.netflix.client.ClientException;
@@ -42,7 +42,8 @@ import feign.RequestTemplate;
 import feign.Response;
 import feign.Util;
 
-public class FeignLoadBalancer extends
+public class FeignLoadBalancer
+		extends
 		AbstractLoadBalancerAwareClient<FeignLoadBalancer.RibbonRequest, FeignLoadBalancer.RibbonResponse> {
 
 	private final int connectTimeout;
@@ -65,9 +66,8 @@ public class FeignLoadBalancer extends
 			throws IOException {
 		Request.Options options;
 		if (configOverride != null) {
-			options = new Request.Options(
-					configOverride.get(CommonClientConfigKey.ConnectTimeout,
-							this.connectTimeout),
+			options = new Request.Options(configOverride.get(
+					CommonClientConfigKey.ConnectTimeout, this.connectTimeout),
 					(configOverride.get(CommonClientConfigKey.ReadTimeout,
 							this.readTimeout)));
 		}
@@ -81,8 +81,7 @@ public class FeignLoadBalancer extends
 	@Override
 	public RequestSpecificRetryHandler getRequestSpecificRetryHandler(
 			RibbonRequest request, IClientConfig requestConfig) {
-		if (this.clientConfig.get(CommonClientConfigKey.OkToRetryOnAllOperations,
-				false)) {
+		if (this.clientConfig.get(CommonClientConfigKey.OkToRetryOnAllOperations, false)) {
 			return new RequestSpecificRetryHandler(true, true, this.getRetryHandler(),
 					requestConfig);
 		}
@@ -99,10 +98,19 @@ public class FeignLoadBalancer extends
 	@Override
 	public URI reconstructURIWithServer(Server server, URI original) {
 		String scheme = original.getScheme();
-		if (!"https".equals(scheme) && (this.serverIntrospector.isSecure(server)
-				|| this.clientConfig.get(CommonClientConfigKey.IsSecure, false))) {
-			original = UriComponentsBuilder.fromUri(original).scheme("https").build()
-					.toUri();
+		if (!"https".equals(scheme)
+				&& (this.serverIntrospector.isSecure(server) || this.clientConfig.get(
+						CommonClientConfigKey.IsSecure, false))) {
+			try {
+				original = new URI("https", original.getUserInfo(), original.getHost(),
+						original.getPort(), original.getPath(), original.getQuery(),
+						original.getFragment());
+			}
+			catch (URISyntaxException e) {
+				throw new IllegalStateException(
+						"An error occured when trying to reconstruct the URI in https scheme.",
+						e);
+			}
 		}
 		return super.reconstructURIWithServer(server, original);
 	}

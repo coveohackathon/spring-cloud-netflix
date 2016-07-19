@@ -17,12 +17,14 @@
 package org.springframework.cloud.netflix.ribbon.apache;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.impl.client.HttpClientBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.netflix.ribbon.ServerIntrospector;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.netflix.client.AbstractLoadBalancerAwareClient;
@@ -32,6 +34,7 @@ import com.netflix.client.config.CommonClientConfigKey;
 import com.netflix.client.config.DefaultClientConfigImpl;
 import com.netflix.client.config.IClientConfig;
 import com.netflix.loadbalancer.ILoadBalancer;
+import com.netflix.loadbalancer.Server;
 
 /**
  * @author Christian Lohmann
@@ -39,7 +42,8 @@ import com.netflix.loadbalancer.ILoadBalancer;
 public class RibbonLoadBalancingHttpClient
 		extends
 		AbstractLoadBalancerAwareClient<RibbonApacheHttpRequest, RibbonApacheHttpResponse> {
-	private final HttpClient delegate = HttpClientBuilder.create().build();
+	@Autowired
+	private HttpClient delegate;
 
 	private int connectTimeout;
 
@@ -50,6 +54,8 @@ public class RibbonLoadBalancingHttpClient
 	private boolean followRedirects;
 
 	private boolean okToRetryOnAllOperations;
+
+	private ServerIntrospector serverIntrospector;
 
 	public RibbonLoadBalancingHttpClient() {
 		super(null);
@@ -99,6 +105,24 @@ public class RibbonLoadBalancingHttpClient
 	}
 
 	@Override
+	public URI reconstructURIWithServer(Server server, URI original) {
+		if (!"https".equals(original.getScheme())
+				&& this.serverIntrospector.isSecure(server)) {
+			try {
+				original = new URI("https", original.getUserInfo(), original.getHost(),
+						original.getPort(), original.getPath(), original.getQuery(),
+						original.getFragment());
+			}
+			catch (URISyntaxException e) {
+				throw new IllegalStateException(
+						"An error occured when trying to reconstruct the URI in https scheme.",
+						e);
+			}
+		}
+		return super.reconstructURIWithServer(server, original);
+	}
+
+	@Override
 	public RibbonApacheHttpResponse execute(RibbonApacheHttpRequest request,
 			final IClientConfig configOverride) throws Exception {
 		final RequestConfig.Builder builder = RequestConfig.custom();
@@ -107,12 +131,15 @@ public class RibbonLoadBalancingHttpClient
 					CommonClientConfigKey.ConnectTimeout, this.connectTimeout));
 			builder.setConnectionRequestTimeout(configOverride.get(
 					CommonClientConfigKey.ReadTimeout, this.readTimeout));
+			builder.setSocketTimeout(configOverride.get(
+					CommonClientConfigKey.ReadTimeout, this.readTimeout));
 			builder.setRedirectsEnabled(configOverride.get(
 					CommonClientConfigKey.FollowRedirects, this.followRedirects));
 		}
 		else {
 			builder.setConnectTimeout(this.connectTimeout);
 			builder.setConnectionRequestTimeout(this.readTimeout);
+			builder.setSocketTimeout(this.readTimeout);
 			builder.setRedirectsEnabled(this.followRedirects);
 		}
 
@@ -132,5 +159,13 @@ public class RibbonLoadBalancingHttpClient
 	private boolean isSecure(final IClientConfig config) {
 		return (config != null) ? config.get(CommonClientConfigKey.IsSecure)
 				: this.secure;
+	}
+
+	public ServerIntrospector getServerIntrospector() {
+		return this.serverIntrospector;
+	}
+
+	public void setServerIntrospector(ServerIntrospector serverIntrospector) {
+		this.serverIntrospector = serverIntrospector;
 	}
 }
