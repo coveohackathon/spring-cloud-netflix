@@ -18,6 +18,8 @@ import static org.mockito.Mockito.when;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -103,6 +105,28 @@ public class FeignLoadBalancerTests {
 
 	@Test
 	@SneakyThrows
+	public void testInsecureUriFromInsecureClientConfigToSecureServerIntrospector() {
+		when(this.config.get(IsSecure)).thenReturn(false);
+		this.feignLoadBalancer = new FeignLoadBalancer(this.lb, this.config,
+				new ServerIntrospector() {
+					@Override
+					public boolean isSecure(Server server) {
+						return true;
+					}
+
+					@Override
+					public Map<String, String> getMetadata(Server server) {
+						return null;
+					}
+				});
+		Server server = new Server("foo", 7777);
+		URI uri = this.feignLoadBalancer.reconstructURIWithServer(server,
+				new URI("http://foo/"));
+		assertThat(uri, is(new URI("http://foo:7777/")));
+	}
+
+	@Test
+	@SneakyThrows
 	public void testSecureUriFromClientConfigOverride() {
 		this.feignLoadBalancer = new FeignLoadBalancer(this.lb, this.config,
 				this.inspector);
@@ -113,4 +137,21 @@ public class FeignLoadBalancerTests {
 				new URI("http://bar/"));
 		assertThat(uri, is(new URI("https://foo:443/")));
 	}
+
+	@Test
+	@SneakyThrows
+	public void testRibbonRequestURLEncode() {
+		String url = "http://foo/?name=%7bcookie";//name={cookie
+		Request request = Request.create("GET",url,new HashMap(),null,null);
+
+		assertThat(request.url(),is(url));
+
+		RibbonRequest ribbonRequest = new RibbonRequest(this.delegate,request,new URI(request.url()));
+
+		Request cloneRequest = ribbonRequest.toRequest();
+
+		assertThat(cloneRequest.url(),is(url));
+
+	}
+
 }

@@ -31,9 +31,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 
+import com.netflix.hystrix.HystrixCommandProperties.ExecutionIsolationStrategy;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import static com.netflix.hystrix.HystrixCommandProperties.ExecutionIsolationStrategy.SEMAPHORE;
 
 /**
  * @author Spencer Gibb
@@ -48,7 +52,7 @@ public class ZuulProperties {
 	 * duplicated if the proxy and the backend are secured with Spring. By default they
 	 * are added to the ignored headers if Spring Security is present.
 	 */
-	private static final List<String> SECURITY_HEADERS = Arrays.asList("Pragma",
+	public static final List<String> SECURITY_HEADERS = Arrays.asList("Pragma",
 			"Cache-Control", "X-Frame-Options", "X-Content-Type-Options",
 			"X-XSS-Protection", "Expires");
 
@@ -77,6 +81,11 @@ public class ZuulProperties {
 	 * Flag to determine whether the proxy adds X-Forwarded-* headers.
 	 */
 	private boolean addProxyHeaders = true;
+
+	/**
+	 * Flag to determine whether the proxy forwards the Host header.
+	 */
+	private boolean addHostHeader = false;
 
 	/**
 	 * Set of service names not to consider for proxying automatically. By default all
@@ -131,6 +140,10 @@ public class ZuulProperties {
 	 */
 	private boolean sslHostnameValidationEnabled =true;
 
+	private ExecutionIsolationStrategy ribbonIsolationStrategy = SEMAPHORE;
+	
+	private HystrixSemaphore semaphore = new HystrixSemaphore();
+	
 	public Set<String> getIgnoredHeaders() {
 		Set<String> ignoredHeaders = new LinkedHashSet<>(this.ignoredHeaders);
 		if (ClassUtils.isPresent(
@@ -297,6 +310,17 @@ public class ZuulProperties {
 		 * The maximum number of connections that can be used by a single route.
 		 */
 		private int maxPerRouteConnections = 20;
+	}
+	
+	@Data
+	@AllArgsConstructor
+	@NoArgsConstructor
+	public static class HystrixSemaphore {
+		/**
+		 * The maximum number of total semaphores for Hystrix.
+		 */
+		private int maxSemaphores = 100;
+		
 	}
 
 	public String getServletPattern() {

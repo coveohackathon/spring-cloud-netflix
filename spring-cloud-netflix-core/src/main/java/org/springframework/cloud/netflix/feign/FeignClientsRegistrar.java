@@ -184,6 +184,12 @@ class FeignClientsRegistrar implements ImportBeanDefinitionRegistrar,
 		String alias = name + "FeignClient";
 		AbstractBeanDefinition beanDefinition = definition.getBeanDefinition();
 		beanDefinition.setPrimary(true);
+
+		String qualifier = getQualifier(attributes);
+		if (StringUtils.hasText(qualifier)) {
+			alias = qualifier;
+		}
+
 		BeanDefinitionHolder holder = new BeanDefinitionHolder(beanDefinition, className,
 				new String[] { alias });
 		BeanDefinitionReaderUtils.registerBeanDefinition(holder, registry);
@@ -195,7 +201,7 @@ class FeignClientsRegistrar implements ImportBeanDefinitionRegistrar,
 		annotation.getAliasedString("name", FeignClient.class, null);
 	}
 
-	private String getName(Map<String, Object> attributes) {
+	/* for testing */ String getName(Map<String, Object> attributes) {
 		String name = (String) attributes.get("serviceId");
 		if (!StringUtils.hasText(name)) {
 			name = (String) attributes.get("name");
@@ -210,7 +216,14 @@ class FeignClientsRegistrar implements ImportBeanDefinitionRegistrar,
 
 		String host = null;
 		try {
-			host = new URI("http://" + name).getHost();
+			String url;
+			if (!name.startsWith("http://") && !name.startsWith("https://")) {
+				url = "http://" + name;
+			} else {
+				url = name;
+			}
+			host = new URI(url).getHost();
+
 		}
 		catch (URISyntaxException e) {
 		}
@@ -316,6 +329,17 @@ class FeignClientsRegistrar implements ImportBeanDefinitionRegistrar,
 					ClassUtils.getPackageName(importingClassMetadata.getClassName()));
 		}
 		return basePackages;
+	}
+	
+	private String getQualifier(Map<String, Object> client) {
+		if (client == null) {
+			return null;
+		}
+		String qualifier = (String) client.get("qualifier");
+		if (StringUtils.hasText(qualifier)) {
+			return qualifier;
+		}
+		return null;
 	}
 
 	private String getClientName(Map<String, Object> client) {
