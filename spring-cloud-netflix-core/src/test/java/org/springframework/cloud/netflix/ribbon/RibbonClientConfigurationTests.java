@@ -109,9 +109,21 @@ public class RibbonClientConfigurationTests {
 		OverrideRestClient overrideRestClient = new OverrideRestClient(this.config,
 				this.inspector);
 		URI uri = overrideRestClient.reconstructURIWithServer(server,
-				new URI("http://foo/%20bar?hello=1+2"));
-		assertThat(uri, is(new URI("https://foo:7777/%20bar?hello=1+2")));
+				new URI("http://foo/%20bar"));
+		assertThat(uri, is(new URI("https://foo:7777/%20bar")));
 	}
+	
+    @Test
+    public void testNotDoubleEncodedWithPlusInQueryStringWhenServerIsSecure() throws Exception {
+        Server server = new Server("foo", 7777);
+        when(this.inspector.isSecure(server)).thenReturn(true);
+
+        OverrideRestClient overrideRestClient = new OverrideRestClient(this.config,
+                this.inspector);
+        URI uri = overrideRestClient.reconstructURIWithServer(server,
+                new URI("http://foo/%20bar?hello=1+2"));
+        assertThat(uri, is(new URI("https://foo:7777/%20bar?hello=1+2")));
+    }
 
 	static class TestRestClient extends OverrideRestClient {
 
