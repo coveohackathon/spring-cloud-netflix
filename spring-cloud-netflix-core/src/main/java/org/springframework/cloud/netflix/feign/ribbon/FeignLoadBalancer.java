@@ -24,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.cloud.netflix.ribbon.ServerIntrospector;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import com.netflix.client.AbstractLoadBalancerAwareClient;
 import com.netflix.client.ClientException;
@@ -101,16 +102,11 @@ public class FeignLoadBalancer
 		if (!"https".equals(scheme)
 				&& (this.serverIntrospector.isSecure(server) || this.clientConfig.get(
 						CommonClientConfigKey.IsSecure, false))) {
-			try {
-				original = new URI("https", original.getUserInfo(), original.getHost(),
-						original.getPort(), original.getPath(), original.getQuery(),
-						original.getFragment());
+			UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUri(original).scheme("https");
+			if (original.getRawQuery() != null) {
+				uriComponentsBuilder.replaceQuery(original.getRawQuery().replace("+", "%20"));
 			}
-			catch (URISyntaxException e) {
-				throw new IllegalStateException(
-						"An error occured when trying to reconstruct the URI in https scheme.",
-						e);
-			}
+			original = uriComponentsBuilder.build(true).toUri();
 		}
 		return super.reconstructURIWithServer(server, original);
 	}

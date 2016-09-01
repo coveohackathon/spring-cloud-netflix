@@ -108,16 +108,11 @@ public class RibbonLoadBalancingHttpClient
 	public URI reconstructURIWithServer(Server server, URI original) {
 		if (!"https".equals(original.getScheme())
 				&& this.serverIntrospector.isSecure(server)) {
-			try {
-				original = new URI("https", original.getUserInfo(), original.getHost(),
-						original.getPort(), original.getPath(), original.getQuery(),
-						original.getFragment());
+			UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUri(original).scheme("https");
+			if (original.getRawQuery() != null) {
+				uriComponentsBuilder.replaceQuery(original.getRawQuery().replace("+", "%20"));
 			}
-			catch (URISyntaxException e) {
-				throw new IllegalStateException(
-						"An error occured when trying to reconstruct the URI in https scheme.",
-						e);
-			}
+			original = uriComponentsBuilder.build(true).toUri();
 		}
 		return super.reconstructURIWithServer(server, original);
 	}
